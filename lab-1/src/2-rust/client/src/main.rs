@@ -1,22 +1,21 @@
 // Клиент, отправляющий серверу число
 
+mod config;
+use config::Config;
+
 #[allow(unused_imports)]
-use std::net::TcpStream;
+use std::net::{TcpStream, SocketAddr, IpAddr};
 
 use std::io::Write;
-use std::net::SocketAddr;
 
 // Библиотека дает интерфейс к системным сокетам
 use socket2::{Socket, Domain, Type, Protocol}; 
 
 fn main() -> std::io::Result<()> {
-    let n = std::env::args() // берем переданные программе аргументы
-                    .nth(1) // берем второй, поскольку первый -- имя программы
-                    // Этот и дальнейшие вызовы .expect() -- обработка ошибок
-                    .expect("Введите число, которе надо передать серверу!");
-
-    let n = i32::from_str_radix(&n, 10) // переводим строку в число
-                    .expect("Введите другое число!");
+    let conf: Config = argh::from_env();
+    let ip = conf.host.parse::<IpAddr>()
+        .expect("Не удалось распознать IP-адрес");
+    let sock_addr = SocketAddr::new(ip, conf.port);
 
     // Удобно, однако слишком просто
     /* let mut stream = TcpStream::connect("127.0.0.1:8080")?; */
@@ -28,9 +27,7 @@ fn main() -> std::io::Result<()> {
     )?;
 
     // Соединяемся с хостом
-    socket.connect(&"127.0.0.1:8080".parse::<SocketAddr>() 
-                    .expect("Неправильно указан IP-адрес")
-                    .into())
+    socket.connect(&sock_addr.into())
                 .expect("Не удалось сделать connect()!");
 
     // Превращаем сокет в поток, по аналогии с файлами. Примерно то же самое,
@@ -38,7 +35,7 @@ fn main() -> std::io::Result<()> {
     let mut stream = socket.into_tcp_stream(); 
 
     // Отправляем серверу число в порядке байт big-endian (сетевой)
-    stream.write(&n.to_be_bytes()) 
+    stream.write(&conf.number.to_be_bytes()) 
         .expect("Не удалось отправить число!");
 
     println!("Число отправлено.");
