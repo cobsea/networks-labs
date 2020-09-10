@@ -1,10 +1,12 @@
 // Сервер, принимающий 2 слагаемых и хранящий в буффере сумму 
 
+mod config;
+use config::Config;
+
 #[allow(unused_imports)]
-use std::net::{TcpListener, TcpStream};
+use std::net::{TcpListener, TcpStream, IpAddr, SocketAddr};
 use std::io::{Read};
 
-use std::net::SocketAddr;
 use socket2::{Socket, Domain, Type, Protocol};
 
 // Функция, обрабатываящая каждого клиента по отдельности последовательно
@@ -44,6 +46,11 @@ fn main() -> std::io::Result<()> {
     // Задаем максимальное количество клиентов в очереди (SOMAXCONN в си)
     const MAX_CONN: i32 = 128;
 
+    let conf: Config = argh::from_env(); // смотрим параметры приложения
+    let ip = conf.host.parse::<IpAddr>()
+        .expect("Не удалось прочитать IP-адрес");
+    let sock_addr = SocketAddr::new(ip, conf.port);
+
     // Удобно, однако слишком просто
     /* let listener = TcpListener::bind("127.0.0.1:8080")?; */
 
@@ -58,9 +65,7 @@ fn main() -> std::io::Result<()> {
         .unwrap();
 
     // Назначаем сокету адрес и порт
-    socket.bind(&"127.0.0.1:8080".parse::<SocketAddr>() 
-                .expect("Неверно указан IP-адрес!")
-                .into())
+    socket.bind(&sock_addr.into())
         .expect("Не удалось сделать bind()!");
 
     // Делаем сокет пассивным, слушающим входящие соединения
